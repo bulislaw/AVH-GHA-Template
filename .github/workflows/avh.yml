@@ -1,5 +1,7 @@
 # This is a GitHub Actions template for a basic integration with Arm Virtual Hardware
 
+# Requires AVH_TOKEN to be set in repository secret. You can find your token at https://app.avh.arm.com/profile/api
+
 name: Arm Virtual Hardware template
 on:
   push:
@@ -9,6 +11,9 @@ on:
     branches: [ main ]
 
   workflow_dispatch:
+
+env:
+  AVH_TOKEN: ${{ secrets.AVH_TOKEN }}
 
 jobs:
   build:
@@ -56,4 +61,3 @@ jobs:
         with:
           name: IOT_HTTP_WebServer.bin
           path: ${{ github.workspace }}
-
