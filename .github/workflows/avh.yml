@@ -61,3 +61,7 @@ jobs:
         with:
           name: IOT_HTTP_WebServer.bin
           path: ${{ github.workspace }}
+
+      - name: Run test on Arm Virtual Hardware
+        run: |
+          python3 scripts/avh.py -t ${{ env.AVH_TOKEN }} -b stm32u5-b-u585i-iot02a -f ${{ github.workspace }}/IOT_HTTP_WebServer.bin
