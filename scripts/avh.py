@@ -21,17 +21,7 @@ async def waitForState(api_instance, instance, state):
     await asyncio.sleep(1)
     instanceState = await api_instance.v1_get_instance_state(instance.id)
 
-async def main(args):
-    configuration = AvhAPI.Configuration(host = args.endpoint)
-    async with AvhAPI.ApiClient(configuration=configuration) as api_client:
-        api_instance = AvhAPI.ArmApi(api_client)
-        token_response = await api_instance.v1_auth_login({
-            "apiToken": args.token,
-        })
-
-        logging.info("Logged in to AVH")
-        configuration.access_token = token_response.token
-
+async def setupModel(api_instance, board, firmware):
         logging.info("Finding a project...")
         api_response = await api_instance.v1_get_projects()
         projectId = api_response[0].id
@@ -41,12 +31,12 @@ async def main(args):
         api_response = await api_instance.v1_get_models()
         chosenModel = None
         for model in api_response:
-            if model.flavor.startswith(args.board):
+            if model.flavor.startswith(board):
                 chosenModel = model
                 break
 
         if chosenModel is None:
-            raise Exception(f"Board not found: {args.board}")
+            raise Exception(f"Board not found: {board}")
 
         logging.info(f"Chosen board: {chosenModel.name}")
 
@@ -57,7 +47,7 @@ async def main(args):
 
         logging.info(f"Creating a new instance of the board...")
         instance = await api_instance.v1_create_instance({
-            "name": f"{chosenModel.name}-{time.time()}",
+            "name": f"GHA-{chosenModel.name}-{time.time()}",
             "project": projectId,
             "flavor": chosenModel.flavor,
             "os": chosenSoftware.version,
@@ -69,23 +59,54 @@ async def main(args):
         await waitForState(api_instance, instance, "on")
         logging.info("Done... VM is running")
 
-        logging.info(f"Setting the VM to use the test image: {args.firmware}")
+        logging.info(f"Setting the VM to use the test image: {firmware}")
         api_response = await api_instance.v1_create_image("fwbinary", "plain",
-            name=os.path.basename(args.firmware),
+            name=os.path.basename(firmware),
             instance=instance.id,
-            file=args.firmware
+            file=firmware
         )
 
-        logging.info("Resetting VM to use the new software")
+        logging.info("Resetting VM to use the new firmware...")
         api_response = await api_instance.v1_reboot_instance(instance.id)
         await waitForState(api_instance, instance, "on")
         logging.info("Done... VM is running")
 
+        return instance
+
+async def runTests(api_instance, instance, script):
+    logging.info(f"Running test file: {script}")
+
+    logging.info("Test file finished.")
+
+async def main(args):
+    instance = None
+    configuration = AvhAPI.Configuration(host = args.endpoint)
+    async with AvhAPI.ApiClient(configuration=configuration) as api_client:
+        api_instance = AvhAPI.ArmApi(api_client)
+        token_response = await api_instance.v1_auth_login({
+            "apiToken": args.token,
+        })
+
+        logging.info("Logged in to AVH")
+        configuration.access_token = token_response.token
+
+        try:
+            instance = await setupModel(api_instance, args.board, args.firmware)
+
+            if args.script is not None:
+                runTests(api_instance, instance, args.script)
+
+        finally:
+            if instance is not None:
+                logging.info("Cleaning up...")
+                await api_instance.v1_delete_instance(instance.id)
+                logging.info("Done... instance deleted")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-                prog = "Experimental client for Arm Virtual Hardware",
-                description="It allows you to run basic tests on Arm Virtual Hardware using the REST API")
+        prog = "Experimental client for Arm Virtual Hardware",
+        description="It allows you to run basic tests on Arm Virtual Hardware using the REST API"
+    )
 
     parser.add_argument("-t", "--token", help="Authentication token for AVH", type=str, required=True)
     parser.add_argument("-b", "--board", help="A board type to run tests on", type=str, required=True)
@@ -101,6 +122,8 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.ERROR)
+
+    logging.info(f"Run with args: {args}")
 
     asyncio.run(asyncio.wait_for(main(args), 120))
     exit(0)
