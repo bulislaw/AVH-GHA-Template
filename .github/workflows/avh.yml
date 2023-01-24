@@ -64,4 +64,4 @@ jobs:
 
       - name: Run test on Arm Virtual Hardware
         run: |
-          python3 scripts/avh.py -t ${{ env.AVH_TOKEN }} -b stm32u5-b-u585i-iot02a -f ${{ github.workspace }}/IOT_HTTP_WebServer.bin
+          python3 scripts/avh.py -t ${{ env.AVH_TOKEN }} -b stm32u5-b-u585i-iot02a -f IOT_HTTP_WebServer.bin -s scripts/test_stm32_iot_http_webserver.py --timeout 5
