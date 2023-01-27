@@ -7,35 +7,8 @@
 
 from websockets import client as ws
 import ssl
-import re
 import logging
-
-async def waitForPattern(console, pattern):
-    """Wait for the given pattern to appear in the console
-
-    Warning/TODO: There's no timeout so this function can block forever
-
-    Parameters:
-        console: Websocket connection to the console
-        pattern: Pattern to wait for (passed to a re.search)
-
-    Returns:
-        The re match object
-    """
-    text = ''
-    match = None
-
-    logging.info(f"Waiting for pattern: {pattern}")
-    async for message in console:
-        text += message.decode('utf-8')
-        while '\n' in text:
-            offset = text.find('\n')
-            line, text = text[:offset], text[offset+1:]
-
-            match = re.search(pattern, line)
-            if (match):
-                logging.info("Found")
-                return match
+from avh import waitForPattern
 
 async def run_test(api_instance, vm):
     """Run the tests

@@ -12,6 +12,34 @@ import avh_api_async as AvhAPI
 import time
 import logging
 import os
+import re
+
+async def waitForPattern(console, pattern):
+    """Test helper: wait for the given pattern to appear on the VM console
+
+    Warning/TODO: There's no timeout so this function can block forever
+
+    Parameters:
+        console: Websocket connection to the console
+        pattern: Pattern to wait for (passed to a re.search)
+
+    Returns:
+        The re match object
+    """
+    text = ''
+    match = None
+
+    logging.info(f"Waiting for pattern: {pattern}")
+    async for message in console:
+        text += message.decode('utf-8')
+        while '\n' in text:
+            offset = text.find('\n')
+            line, text = text[:offset], text[offset+1:]
+
+            match = re.search(pattern, line)
+            if (match):
+                logging.info("Found")
+                return match
 
 async def waitForState(api_instance, instance, state):
     """Wait for the VM to enter the given state
