@@ -11,22 +11,42 @@ import re
 import logging
 
 async def waitForPattern(console, pattern):
-  text = ''
-  match = None
+    """Wait for the given pattern to appear in the console
 
-  logging.info(f"Waiting for pattern: {pattern}")
-  async for message in console:
-    text += message.decode('utf-8')
-    while '\n' in text:
-      offset = text.find('\n')
-      line, text = text[:offset], text[offset+1:]
+    Warning/TODO: There's no timeout so this function can block forever
 
-      match = re.search(pattern, line)
-      if (match):
-        logging.info("Found")
-        return match
+    Parameters:
+        console: Websocket connection to the console
+        pattern: Pattern to wait for (passed to a re.search)
 
-async def run(api_instance, vm):
+    Returns:
+        The re match object
+    """
+    text = ''
+    match = None
+
+    logging.info(f"Waiting for pattern: {pattern}")
+    async for message in console:
+        text += message.decode('utf-8')
+        while '\n' in text:
+            offset = text.find('\n')
+            line, text = text[:offset], text[offset+1:]
+
+            match = re.search(pattern, line)
+            if (match):
+                logging.info("Found")
+                return match
+
+async def run_test(api_instance, vm):
+    """Run the tests
+
+    It'll throw an exception if the test fails or return cleanly if it passes
+
+    Currently we only validate if the VM boots
+    Parameters:
+        api_instance: Connected API instance
+        vm: VM instance
+    """
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
